@@ -92,7 +92,7 @@ export default function Dashboard() {
           </div>
 
           {/* Gráficas */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth < 768 ? "1fr" : "1fr 1fr", gap: '20px', marginBottom: '24px' }}>
             {/* Por localidad */}
             <div style={{ background: '#fff', borderRadius: '12px', padding: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
               <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#1F3864', marginBottom: '16px' }}>
