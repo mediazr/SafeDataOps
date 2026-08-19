@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Info, Database, Cpu } from 'lucide-react'
 import L from 'leaflet'
-import 'leaflet/dist/leaflet.css'
 
 const API = import.meta.env.PROD ? '' : 'http://localhost:8000'
 
