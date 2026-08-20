@@ -20,7 +20,7 @@ export default function Header({ vista, setVista }) {
       <div style={{
         maxWidth: '1400px', margin: '0 auto',
         display: 'flex', alignItems: 'center',
-        justifyContent: 'space-between', height: '60px'
+        justifyContent: 'space-between', height: '64px'
       }}>
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -29,15 +29,14 @@ export default function Header({ vista, setVista }) {
             <div style={{ fontWeight: 700, fontSize: '16px', letterSpacing: '0.3px' }}>
               SafeData Ops
             </div>
-            <div style={{ fontSize: '10px', color: '#93c5fd', marginTop: '-2px' }}>
-              Analítica de riesgo urbano · Bogotá D.C.
+            <div style={{ fontSize: '10px', color: '#93c5fd', marginTop: '-1px' }}>
+              Inteligencia geoespacial para estimación de riesgo urbano
             </div>
           </div>
         </div>
 
         {/* Nav desktop */}
-        <nav style={{ display: 'flex', gap: '4px' }}
-             className="desktop-nav">
+        <nav style={{ display: 'flex', gap: '4px' }} className="desktop-nav">
           {NAV.map(({ id, label, Icon }) => (
             <button key={id} onClick={() => setVista(id)} style={{
               display: 'flex', alignItems: 'center', gap: '6px',
@@ -52,10 +51,10 @@ export default function Header({ vista, setVista }) {
           ))}
         </nav>
 
-        {/* Fuente tag */}
-        <div style={{ fontSize: '11px', color: '#93c5fd', textAlign: 'right',
-                      display: 'none' }} className="source-tag">
-          NUSE 123 · IDECA
+        {/* Fuente tag desktop */}
+        <div style={{ fontSize: '11px', color: '#93c5fd', textAlign: 'right' }}
+             className="source-tag">
+          NUSE 123 · IDECA · Bogotá D.C.
         </div>
 
         {/* Hamburger mobile */}
@@ -79,8 +78,7 @@ export default function Header({ vista, setVista }) {
               width: '100%', padding: '12px 20px', border: 'none',
               background: vista === id ? '#2E5496' : 'transparent',
               color: vista === id ? '#fff' : '#93c5fd',
-              cursor: 'pointer', fontSize: '14px', fontWeight: 500,
-              textAlign: 'left'
+              cursor: 'pointer', fontSize: '14px', fontWeight: 500, textAlign: 'left'
             }}>
               <Icon size={16} />{label}
             </button>
@@ -92,9 +90,7 @@ export default function Header({ vista, setVista }) {
         @media (max-width: 768px) {
           .desktop-nav { display: none !important; }
           .hamburger { display: block !important; }
-        }
-        @media (min-width: 769px) {
-          .source-tag { display: block !important; }
+          .source-tag { display: none !important; }
         }
       `}</style>
     </header>
