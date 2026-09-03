@@ -19,7 +19,7 @@ from typing import Optional
 BASE_DIR = os.path.dirname(__file__)
 
 try:
-    MODEL = joblib.load(os.path.join(BASE_DIR, 'safedataops_predictor_v3_2.pkl'))
+    MODEL = joblib.load(os.path.join(BASE_DIR, 'safedataops_predictor_v4.pkl'))
     IVL_DF = pd.read_csv(os.path.join(BASE_DIR, 'safedataops_spatial_analysis_v3.csv'))
     MODEL_LOADED = True
     print("✓ Modelo XGBoost v3.2 cargado correctamente")
@@ -98,34 +98,75 @@ app.add_middleware(
 )
 
 # ── Helpers ──────────────────────────────────────────────────────────
+# Estrato real por UPZ de San Cristóbal (Spatial Join con DANE)
+ESTRATO_PROM_UPZ = {
+    '20 DE JULIO':            2.05,
+    'LA GLORIA':              1.70,
+    'SAN BLAS':               1.42,
+    'LOS LIBERTADORES':       1.60,
+    'SOSIEGO':                2.00,
+    'SIN LOCALIZACION':       1.73,
+    'LAS CRUCES':             2.06,
+    'SIN UPZ SAN CRISTOBAL':  1.23,
+}
+ESTRATO_PRED_UPZ = {
+    '20 DE JULIO':2, 'LA GLORIA':2, 'SAN BLAS':2,
+    'LOS LIBERTADORES':2, 'SOSIEGO':2, 'SIN LOCALIZACION':2,
+    'LAS CRUCES':3, 'SIN UPZ SAN CRISTOBAL':1,
+}
+
+TIPOS_TOP_V4 = [
+    'RIÑA','RUIDO','ALTERACIÓN DEL ORDEN PÚBLICO','VERIFICAR SITUACIÓN',
+    'MALTRATO','ACCIDENTE DE TRÁNSITO','NARCÓTICOS',
+    'PERSONA O VEHÍCULO SOSPECHOSO','ENFERMO','MALTRATO A MUJER','OTROS'
+]
+
 def predict_upz(upz: str, anio: int = 2025, mes: int = 7):
     if not MODEL_LOADED or MODEL is None or IVL_DF is None:
         return None
     row_ivl = IVL_DF[IVL_DF['UPZ'] == upz]
     total_hist = float(row_ivl['CANT_INCIDENTES'].values[0]) if len(row_ivl) else 50000
+    ivl_val    = float(row_ivl['VULNERABILITY_INDEX'].values[0]) if len(row_ivl) else 0
+    lum        = float(row_ivl['INFRA_POINTS'].values[0]) if len(row_ivl) else 0
+
+    # Normalize IVL
+    ivl_max = float(IVL_DF['VULNERABILITY_INDEX'].max())
+    ivl_min = float(IVL_DF['VULNERABILITY_INDEX'].min())
+    ivl_norm = (ivl_val - ivl_min) / (ivl_max - ivl_min + 1e-6)
+
     meses_hist = 120
-    row = {
-        'ANIO': anio, 'MES': mes,
-        'TIME_INDEX': (anio - 2015) * 12 + mes,
-        'LAG_1_MES':  total_hist / (meses_hist + 1),
-        'LAG_2_MES':  total_hist / (meses_hist + 2),
-        'LAG_12_MES': total_hist / (meses_hist + 12),
-        'IS_PEAK_MONTH':   1 if mes in [12, 3, 6] else 0,
-        'IS_RAINY_SEASON': 1 if mes in [4, 5, 10, 11] else 0,
-    }
-    for u in UPZS_SAN_CRISTOBAL:
-        row[f'UPZ_{u}'] = 1 if u == upz else 0
+    total_pred = 0
     try:
         features = list(MODEL.feature_names_in_)
-        X = pd.DataFrame([row])
-        for col in features:
-            if col not in X.columns:
-                X[col] = 0
-        X = X[features]
-        pred = float(MODEL.predict(X)[0])
-        return max(0, round(pred, 1))
+        for tipo in TIPOS_TOP_V4:
+            row = {
+                'ANIO': anio, 'MES': mes,
+                'TIME_INDEX': (anio - 2015) * 12 + mes,
+                'LAG_1_MES':  total_hist / (meses_hist + 1),
+                'LAG_2_MES':  total_hist / (meses_hist + 2),
+                'LAG_3_MES':  total_hist / (meses_hist + 3),
+                'LAG_12_MES': total_hist / (meses_hist + 12),
+                'ROLLING_3M': total_hist / (meses_hist + 1),
+                'IS_PEAK_MONTH':    1 if mes in [12, 3, 6] else 0,
+                'IS_RAINY_SEASON':  1 if mes in [4, 5, 10, 11] else 0,
+                'IS_WEEKEND_HEAVY': 1 if mes in [1, 7, 8] else 0,
+                'IVL_NORM':    ivl_norm,
+                'LUM_UPZ':     lum,
+                'ESTRATO_PROM': ESTRATO_PROM_UPZ.get(upz, 2.0),
+                'ESTRATO_PRED': ESTRATO_PRED_UPZ.get(upz, 2),
+            }
+            for u in UPZS_SAN_CRISTOBAL:
+                row[f'UPZ_{u}'] = 1 if u == upz else 0
+            for t in TIPOS_TOP_V4:
+                row[f'TIPO_TOP_{t}'] = 1 if t == tipo else 0
+            X = pd.DataFrame([row])
+            for col in features:
+                if col not in X.columns: X[col] = 0
+            X = X[features]
+            total_pred += max(0, float(MODEL.predict(X)[0]))
+        return round(total_pred, 1)
     except Exception as e:
-        print(f"Prediction error for {upz}: {e}")
+        print(f'Prediction error for {upz}: {e}')
         return None
 
 
@@ -214,11 +255,11 @@ def datos_respaldo(localidad=None, anio=None, tipo=None) -> list:
 async def health():
     return {
         "status": "ok",
-        "servicio": "SafeData Ops API v2.1",
+        "servicio": "SafeData Ops API v3.0",
         "concepto": "Sistema de inteligencia geoespacial para estimación de riesgo urbano",
         "modelo_cargado": MODEL_LOADED,
-        "modelo_r2": 0.953,
-        "modelo_eficacia": "86.68%",
+        "modelo_r2": 0.954,
+        "modelo_eficacia": "87.67%",
         "fuentes": ["NUSE 123", "Luminarias UAESP/IDECA", "Estratificación DANE"],
     }
 
@@ -269,7 +310,7 @@ async def riesgo_san_cristobal(
     return {
         "localidad":  "SAN CRISTOBAL",
         "anio": anio, "mes": mes,
-        "modelo":     "XGBoost v3.2 — R²=0.953 — 86.68% eficacia",
+        "modelo":     "XGBoost v4.0 — R²=0.954 — 87.67% eficacia",
         "concepto":   "Sistema de inteligencia geoespacial para estimación de riesgo urbano",
         "variables":  ["ANIO","MES","TIME_INDEX","LAG_1_MES","LAG_2_MES",
                        "LAG_12_MES","IS_PEAK_MONTH","IS_RAINY_SEASON","UPZ (OHE)"],
